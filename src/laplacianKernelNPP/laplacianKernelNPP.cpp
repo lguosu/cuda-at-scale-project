@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-      filePath = sdkFindFilePath("Lena.pgm", argv[0]);
+      filePath = sdkFindFilePath("../../data/Lena_boxFilter.pgm", argv[0]);
     }
 
     if (filePath)
@@ -109,14 +109,14 @@ int main(int argc, char *argv[])
 
     if (infile.good())
     {
-      std::cout << "boxFilterNPP opened: <" << sFilename.data()
+      std::cout << "laplacianFilterNPP opened: <" << sFilename.data()
                 << "> successfully!" << std::endl;
       file_errors = 0;
       infile.close();
     }
     else
     {
-      std::cout << "boxFilterNPP unable to open: <" << sFilename.data() << ">"
+      std::cout << "laplacianFilterNPP unable to open: <" << sFilename.data() << ">"
                 << std::endl;
       file_errors++;
       infile.close();
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
       sResultFilename = sResultFilename.substr(0, dot);
     }
 
-    sResultFilename += "_boxFilter.pgm";
+    sResultFilename += "_laplacian.pgm";
 
     if (checkCmdLineFlag(argc, (const char **)argv, "output"))
     {
@@ -154,25 +154,29 @@ int main(int argc, char *argv[])
     // i.e. upload host to device
     npp::ImageNPP_8u_C1 oDeviceSrc(oHostSrc);
 
-    // create struct with box-filter mask size
-    NppiSize oMaskSize = {5, 5};
-
+    // Define source size and ROI
     NppiSize oSrcSize = {(int)oDeviceSrc.width(), (int)oDeviceSrc.height()};
     NppiPoint oSrcOffset = {0, 0};
-
-    // create struct with ROI size
     NppiSize oSizeROI = {(int)oDeviceSrc.width(), (int)oDeviceSrc.height()};
-    // allocate device image of appropriately reduced size
+    
+    // Allocate device image of same size for result
     npp::ImageNPP_8u_C1 oDeviceDst(oSizeROI.width, oSizeROI.height);
-    // set anchor point inside the mask to (oMaskSize.width / 2,
-    // oMaskSize.height / 2) It should round down when odd
-    NppiPoint oAnchor = {oMaskSize.width / 2, oMaskSize.height / 2};
+    
+    // Laplacian mask - can be 3x3 or 5x5
+    NppiMaskSize eMaskSize = NPP_MASK_SIZE_3_X_3;
 
-    // run box filter
-    NPP_CHECK_NPP(nppiFilterBoxBorder_8u_C1R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, oSrcOffset,
-        oDeviceDst.data(), oDeviceDst.pitch(), oSizeROI, oMaskSize, oAnchor,
-        NPP_BORDER_REPLICATE));
+    // Run Laplacian filter
+    NppStatus status = nppiFilterLaplace_8u_C1R(
+        oDeviceSrc.data(), oDeviceSrc.pitch(), // Source image data and step
+        oDeviceDst.data(), oDeviceDst.pitch(), // Destination image data and step
+        oSrcSize,                              // Region of interest (ROI)
+        NPP_MASK_SIZE_3_X_3                    // Laplacian kernel size
+    );
+
+    if (status != NPP_SUCCESS) {
+        std::cerr << "NPP Laplacian filter failed!" << std::endl;
+        return -1;
+    }
 
     // declare a host image for the result
     npp::ImageCPU_8u_C1 oHostDst(oDeviceDst.size());
