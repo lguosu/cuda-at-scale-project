@@ -43,6 +43,7 @@
 
 #include <cuda_runtime.h>
 #include <npp.h>
+#include <nppi_arithmetic_and_logical_operations.h>
 
 #include <helper_cuda.h>
 #include <helper_string.h>
@@ -175,6 +176,19 @@ int main(int argc, char *argv[])
 
     if (status != NPP_SUCCESS) {
         std::cerr << "NPP Laplacian filter failed!" << std::endl;
+        return -1;
+    }
+
+    // Sharpen the image by adding the Laplacian result to the original
+    status = nppiAdd_8u_C1RSfs(
+        oDeviceSrc.data(), oDeviceSrc.pitch(),
+        oDeviceDst.data(), oDeviceDst.pitch(),
+        oDeviceDst.data(), oDeviceDst.pitch(),
+        oSrcSize,
+        0 // Scale factor (0 means no shift, keeping full precision)
+    );
+    if (status != NPP_SUCCESS) {
+        std::cerr << "NPP Image Addition failed!" << std::endl;
         return -1;
     }
 
